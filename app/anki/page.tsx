@@ -1,6 +1,10 @@
 "use client";
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
+import { ElevenLabsClient, play } from "elevenlabs";
+
+
+
 
 export default function Anki() {
   //   ## Public Anki Card
@@ -46,6 +50,12 @@ export default function Anki() {
   const [myAnkiList, setMyAnkiList] = useState<any[] | null>([]);
   const [myAnkiCards, setMyAnkiCards] = useState<any[] | null>([]);
   const [user, setUser] = useState<any | null>();
+
+  const ElevenLabs_Client = new ElevenLabsClient(
+    {
+      apiKey: process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY!,
+    }
+  );
 
   useEffect(() => {
     async function fetchData() {
@@ -111,8 +121,8 @@ export default function Anki() {
   }
 
   async function createMyAnkiCard() {
-    const word = "Maito"; // The title to check
-    const translate = "milk"; // The translation
+    const word = "Kuka on".trim(); // The title to check
+    const translate = "Who"; // The translation
     const list_id = myAnkiList[0].list_id; // Assuming you have a list_id from your context
     const note = "This is a note"; // Optional note
     const language = "fin"; // Specify the language for the card
@@ -120,11 +130,11 @@ export default function Anki() {
 
     // Step 1: Check if the word already exists in public_anki_card
     const { data: ankiCard, error: ankiCardError } = await supabase
-      .from("public_anki_card")
-      .select("*")
-      .eq("title", word)
-      .eq("language", language) // Check for the same language
-      .single(); // Use .single() to get a single record or null
+  .from("public_anki_card")
+  .select("*")
+  .ilike("title", word) // Use ilike for case-insensitive match
+  .eq("language", language)
+  .single();
 
     if (ankiCardError && ankiCardError.code !== "PGRST116") {
       // Handle error if not "not found"
@@ -136,17 +146,43 @@ export default function Anki() {
 
     // Step 2: If the card does not exist, insert it into public_anki_card
     if (!ankiCard) {
+      // const voice = createVoiceCard(word)
+      const handleCreateVoiceCard = async () => {
+        const response = await fetch('/api/createVoice', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text:word }),
+        });
+    
+        const audioBlob = await response.blob()
+
+        // Create a URL for the blob
+        const url = URL.createObjectURL(audioBlob)
+        console.log(url)
+  
+        // Play the audio automatically
+        const audio = new Audio(url)
+        audio.play()
+        // return data.fileName;
+      };
+      handleCreateVoiceCard()
+      // const voice = await handleCreateVoiceCard()
+      // console.log(voice)
       const { data: newAnkiCard, error: insertAnkiCardError } = await supabase
         .from("public_anki_card")
         .insert([
           {
             title: word,
             language: language,
+            
             create_date: new Date().toISOString(), // Set the current date
           },
         ])
         .select()
         .single(); // Get the newly created card
+
 
       if (insertAnkiCardError) {
         console.error("Error inserting new Anki card:", insertAnkiCardError);
