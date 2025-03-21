@@ -50,6 +50,7 @@ export default function Anki() {
   const [myAnkiList, setMyAnkiList] = useState<any[] | null>([]);
   const [myAnkiCards, setMyAnkiCards] = useState<any[] | null>([]);
   const [user, setUser] = useState<any | null>();
+  const[currentWord, setCurrentWord] = useState<string>("")
 
   const ElevenLabs_Client = new ElevenLabsClient(
     {
@@ -121,7 +122,7 @@ export default function Anki() {
   }
 
   async function createMyAnkiCard() {
-    const word = "Kuka on".trim(); // The title to check
+    const word = currentWord.trim(); // The title to check
     const translate = "Who"; // The translation
     const list_id = myAnkiList[0].list_id; // Assuming you have a list_id from your context
     const note = "This is a note"; // Optional note
@@ -141,12 +142,12 @@ export default function Anki() {
       console.error("Error checking for existing card:", ankiCardError);
       return;
     }
+   
 
     let ankiCardId;
 
     // Step 2: If the card does not exist, insert it into public_anki_card
     if (!ankiCard) {
-      // const voice = createVoiceCard(word)
       const handleCreateVoiceCard = async () => {
         const response = await fetch('/api/createVoice', {
           method: 'POST',
@@ -156,27 +157,19 @@ export default function Anki() {
           body: JSON.stringify({ text:word }),
         });
     
-        const audioBlob = await response.blob()
-
-        // Create a URL for the blob
-        const url = URL.createObjectURL(audioBlob)
-        console.log(url)
+        const fileURL = await response.json()
   
-        // Play the audio automatically
-        const audio = new Audio(url)
-        audio.play()
-        // return data.fileName;
+       return fileURL.filename
       };
-      handleCreateVoiceCard()
-      // const voice = await handleCreateVoiceCard()
-      // console.log(voice)
+      const fileURL = await handleCreateVoiceCard(); // Wait for handleCreateVoiceCard to complete
+
       const { data: newAnkiCard, error: insertAnkiCardError } = await supabase
         .from("public_anki_card")
         .insert([
           {
             title: word,
             language: language,
-            
+            pronounce: fileURL,
             create_date: new Date().toISOString(), // Set the current date
           },
         ])
@@ -231,6 +224,7 @@ export default function Anki() {
       <div>
         <p>personal_card</p>
         <pre>{JSON.stringify(myAnkiCards, null, 2)}</pre>
+        <input type="text" onChange={(e) => setCurrentWord(e.target.value)} />
         <button onClick={() => createMyAnkiCard()}>Create Card</button>
       </div>
     </div>
